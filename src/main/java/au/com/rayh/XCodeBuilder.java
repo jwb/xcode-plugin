@@ -133,11 +133,16 @@ public class XCodeBuilder extends Builder {
      * @since 1.3.2
      */
     public final String codeSigningIdentity;
+    /**
+     * @since 1.3.3
+     */
+    public final String fileNameSuffix;
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public XCodeBuilder(Boolean buildIpa, Boolean cleanBeforeBuild, Boolean cleanTestReports, String configuration, String target, String sdk, String xcodeProjectPath, String xcodeProjectFile, String xcodebuildArguments, String embeddedProfileFile, String cfBundleVersionValue, String cfBundleShortVersionStringValue, Boolean unlockKeychain, String keychainPath, String keychainPwd, String symRoot, String xcodeWorkspaceFile, String xcodeSchema, String configurationBuildDir, String codeSigningIdentity) {
+    public XCodeBuilder(Boolean buildIpa, String fileNameSuffix, Boolean cleanBeforeBuild, Boolean cleanTestReports, String configuration, String target, String sdk, String xcodeProjectPath, String xcodeProjectFile, String xcodebuildArguments, String embeddedProfileFile, String cfBundleVersionValue, String cfBundleShortVersionStringValue, Boolean unlockKeychain, String keychainPath, String keychainPwd, String symRoot, String xcodeWorkspaceFile, String xcodeSchema, String configurationBuildDir, String codeSigningIdentity) {
         this.buildIpa = buildIpa;
+        this.fileNameSuffix = fileNameSuffix;
         this.sdk = sdk;
         this.target = target;
         this.cleanBeforeBuild = cleanBeforeBuild;
@@ -440,8 +445,12 @@ public class XCodeBuilder extends Builder {
                 else
                     version = cfBundleVersion;
 
-                String baseName = app.getBaseName().replaceAll(" ", "_") + "-" +
-                        configuration.replaceAll(" ", "_") + (StringUtils.isEmpty(version) ? "" : "-" + version);
+                String baseName = app.getBaseName().replaceAll(" ", "_");
+                if (this.fileNameSuffix.isEmpty()) {
+                    baseName += "-" + configuration.replaceAll(" ", "_") + (StringUtils.isEmpty(version) ? "" : "-" + version);                	
+                } else {
+                	baseName = app.getBaseName().replaceAll(" ", "_") + this.fileNameSuffix;
+                }
 
                 FilePath ipaLocation = buildDirectory.child(baseName + ".ipa");
 
