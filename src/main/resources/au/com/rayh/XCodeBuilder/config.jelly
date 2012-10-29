@@ -108,6 +108,11 @@
       description="Type in a custom file name suffix">
         <f:textbox />
     </f:entry>
+    
+    <f:entry title="${%Append version to file name?}" field="appendVersion"
+      description="Checking this option will append the version number to the file name">
+        <f:checkbox />
+    </f:entry>
 
     <f:entry title="${%Code Signing Identity}" field="codeSigningIdentity"
       description="Override the code signing identity specified in the project">
