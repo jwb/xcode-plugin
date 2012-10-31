@@ -24,18 +24,29 @@
 
 package au.com.rayh;
 
-import com.google.common.collect.Lists;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
+import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.ServletException;
+
 import net.sf.json.JSONObject;
+
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.tokenmacro.MacroEvaluationException;
 import org.jenkinsci.plugins.tokenmacro.TokenMacro;
@@ -43,11 +54,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import javax.servlet.ServletException;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import com.google.common.collect.Lists;
 
 /**
  * @author Ray Hilton
@@ -141,13 +148,18 @@ public class XCodeBuilder extends Builder {
      * @since 1.3.3
      */
     public final Boolean appendVersion;
+    /**
+     * @since 1.3.3
+     */
+    public final String cfBundleIdentifierValue;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public XCodeBuilder(Boolean buildIpa, String fileNameSuffix, Boolean appendVersion, Boolean cleanBeforeBuild, Boolean cleanTestReports, String configuration, String target, String sdk, String xcodeProjectPath, String xcodeProjectFile, String xcodebuildArguments, String embeddedProfileFile, String cfBundleVersionValue, String cfBundleShortVersionStringValue, Boolean unlockKeychain, String keychainPath, String keychainPwd, String symRoot, String xcodeWorkspaceFile, String xcodeSchema, String configurationBuildDir, String codeSigningIdentity) {
+    public XCodeBuilder(Boolean buildIpa, String fileNameSuffix, String cfBundleIdentifierValue, Boolean appendVersion, Boolean cleanBeforeBuild, Boolean cleanTestReports, String configuration, String target, String sdk, String xcodeProjectPath, String xcodeProjectFile, String xcodebuildArguments, String embeddedProfileFile, String cfBundleVersionValue, String cfBundleShortVersionStringValue, Boolean unlockKeychain, String keychainPath, String keychainPwd, String symRoot, String xcodeWorkspaceFile, String xcodeSchema, String configurationBuildDir, String codeSigningIdentity) {
         this.buildIpa = buildIpa;
         this.fileNameSuffix = fileNameSuffix;
         this.appendVersion = appendVersion;
+        this.cfBundleIdentifierValue = cfBundleIdentifierValue;
         this.sdk = sdk;
         this.target = target;
         this.cleanBeforeBuild = cleanBeforeBuild;
@@ -304,6 +316,24 @@ public class XCodeBuilder extends Builder {
             } catch (MacroEvaluationException e) {
                 listener.fatalError(Messages.XCodeBuilder_CFBundleVersionMacroError(e.getMessage()));
                 // Fails the build
+                return false;
+            }
+        }
+        
+        // Inject custom bundle identifier
+        // Set :CFBundleIdentifier com.apple.plistbuddy
+        if (!StringUtils.isEmpty(this.cfBundleIdentifierValue)) {
+        	String shellCommand = getDescriptor().getXcodebuildPath() + " -configuration " + this.configuration + " -showBuildSettings | sed -n -E '1,$ s/[ \\t]+INFOPLIST_FILE = //p'";
+        	output.reset();
+        	returnCode = launcher.launch().envs(envs).cmds("/bin/sh", "-c", shellCommand).stdout(output).pwd(projectRoot).join();
+        	if (returnCode == 0) {
+        		String infoPlistPath = output.toString().trim();
+        		listener.getLogger().println("Found info plist path in project settings:" + infoPlistPath);
+                listener.getLogger().println(Messages.XCodeBuilder_CFBundleIdentifierUpdate(this.cfBundleIdentifierValue));
+                returnCode = launcher.launch().envs(envs).cmds(getDescriptor().getPlistBuddyPath(), "-c", "Set :CFBundleIdentifier " + this.cfBundleIdentifierValue, infoPlistPath).stdout(listener).pwd(projectRoot).join();
+        	}
+            if (returnCode > 0) {
+                listener.fatalError(Messages.XCodeBuilder_CFBundleIdentifierUpdateError(this.cfBundleIdentifierValue));
                 return false;
             }
         }
@@ -511,6 +541,7 @@ public class XCodeBuilder extends Builder {
         private String xcodebuildPath = "/usr/bin/xcodebuild";
         private String agvtoolPath = "/usr/bin/agvtool";
         private String xcrunPath = "/usr/bin/xcrun";
+        private String plistBuddyPath = "/usr/libexec/PlistBuddy";
 
         public FormValidation doCheckXcodebuildPath(@QueryParameter String value) throws IOException, ServletException {
             if (StringUtils.isEmpty(value)) {
@@ -533,6 +564,15 @@ public class XCodeBuilder extends Builder {
         public FormValidation doCheckXcrunPath(@QueryParameter String value) throws IOException, ServletException {
             if (StringUtils.isEmpty(value))
                 return FormValidation.error(Messages.XCodeBuilder_xcrunPathNotSet());
+            else {
+                // TODO: check that the file exists (and if an agent is used ?)
+            }
+            return FormValidation.ok();
+        }
+        
+        public FormValidation doCheckPlistBuddyPath(@QueryParameter String value) throws IOException, ServletException {
+            if (StringUtils.isEmpty(value))
+                return FormValidation.error(Messages.XCodeBuilder_plistBuddyPathNotSet());
             else {
                 // TODO: check that the file exists (and if an agent is used ?)
             }
@@ -578,6 +618,14 @@ public class XCodeBuilder extends Builder {
         public void setXcrunPath(String xcrunPath) {
             this.xcrunPath = xcrunPath;
         }
+
+		public String getPlistBuddyPath() {
+			return plistBuddyPath;
+		}
+
+		public void setPlistBuddyPath(String plistBuddyPath) {
+			this.plistBuddyPath = plistBuddyPath;
+		}
     }
 }
 

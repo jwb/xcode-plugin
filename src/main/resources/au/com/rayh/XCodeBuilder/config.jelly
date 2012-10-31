@@ -93,6 +93,11 @@
       description="The value to use for CFBundleVersion. Leave blank to use project's technical number.">
         <f:textbox />
     </f:entry>
+    
+    <f:entry title="${%Bundle identifier}" field="cfBundleIdentifierValue"
+      description="The value to use for CFBundleIdentifier. Leave blank to use project's bundle identifier.">
+        <f:textbox />
+    </f:entry>
 
     <f:entry title="${%Clean test reports?}" field="cleanTestReports"
       help="/plugin/xcode/help-cleanTestReports.html">
