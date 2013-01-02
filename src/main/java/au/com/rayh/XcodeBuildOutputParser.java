@@ -20,6 +20,13 @@ import au.com.rayh.report.TestCase;
 import au.com.rayh.report.TestFailure;
 import au.com.rayh.report.TestSuite;
 
+/**
+ * Parse Xcode output and transform into JUnit-style xml test result files.
+ * This utility class creates and manages a FilterOutputStream to parse the Xcode output to capture the
+ * results of ocunit tests. 
+ * @author John Bito <jwbito@gmail.com>
+ */
+
 public class XcodeBuildOutputParser {
 
     private static DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
@@ -40,6 +47,11 @@ public class XcodeBuildOutputParser {
         super();
     }
 
+    /**
+     * Initalize the FilterOutputStream and prepare to generate the JUnit result files
+     * @param workspace directory that will receive the result files
+     * @param log the Xcode output stream that should be parsed
+     */
     public XcodeBuildOutputParser(File workspace, OutputStream log) {
         this();
         this.captureOutputStream = new LineBasedFilterOutputStream(log);
