@@ -1,39 +1,7 @@
-/*
- * The MIT License
- *
- * Copyright (c) 2011 Ray Yamamoto Hilton
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package au.com.rayh;
 
-import au.com.rayh.report.TestCase;
-import au.com.rayh.report.TestFailure;
-import au.com.rayh.report.TestSuite;
-import hudson.FilePath;
-import hudson.model.TaskListener;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -43,15 +11,17 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 
-/**
- *
- * @author ray
- */
-public class XCodeBuildOutputParser {
+import au.com.rayh.report.TestCase;
+import au.com.rayh.report.TestFailure;
+import au.com.rayh.report.TestSuite;
+
+public class XcodeBuildOutputParser {
+
     private static DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
     private static Pattern START_SUITE = Pattern.compile("Test Suite '(\\S+)'.*started at\\s+(.*)");
     private static Pattern END_SUITE = Pattern.compile("Test Suite '(\\S+)'.*finished at\\s+(.*).");
@@ -60,28 +30,27 @@ public class XCodeBuildOutputParser {
     private static Pattern ERROR_TESTCASE = Pattern.compile("(.*): error: -\\[(\\S+) (\\S+)\\] : (.*)");
     private static Pattern FAILED_TESTCASE = Pattern.compile("Test Case '-\\[\\S+ (\\S+)\\]' failed \\((\\S+) seconds\\).");
     private static Pattern FAILED_WITH_EXIT_CODE = Pattern.compile("failed with exit code (\\d+)");
+    private File testReportsDir;
+    protected OutputStream captureOutputStream;
+    protected int exitCode;
+    protected TestSuite currentTestSuite;
+    protected TestCase currentTestCase;
 
-    FilePath testReportsDir;
-    OutputStream captureOutputStream;
-    TaskListener buildListener;
+    protected XcodeBuildOutputParser() {
+        super();
+    }
 
-    int exitCode;
-    TestSuite currentTestSuite;
-    TestCase currentTestCase;
-
-    public XCodeBuildOutputParser(FilePath workspace, TaskListener buildListener) throws IOException, InterruptedException {
-        this.buildListener = buildListener;
-        this.captureOutputStream = new LineBasedFilterOutputStream();
-
-        testReportsDir = workspace.child("test-reports");
-        testReportsDir.mkdirs();
+    public XcodeBuildOutputParser(File workspace, OutputStream log) {
+        this();
+        this.captureOutputStream = new LineBasedFilterOutputStream(log);
+        this.testReportsDir = workspace;
     }
 
     public class LineBasedFilterOutputStream extends FilterOutputStream {
         StringBuilder buffer = new StringBuilder();
 
-        public LineBasedFilterOutputStream() {
-            super(buildListener.getLogger());
+        public LineBasedFilterOutputStream(OutputStream log) {
+            super(log);
         }
 
         @Override
@@ -92,7 +61,6 @@ public class XCodeBuildOutputParser {
                     handleLine(buffer.toString());
                     buffer = new StringBuilder();
                 } catch(Exception e) {  // Very fugly
-                    buildListener.fatalError(e.getMessage(), e);
                     throw new IOException(e);
                 }
             } else {
@@ -122,12 +90,17 @@ public class XCodeBuildOutputParser {
         }
     }
 
-    private void writeTestReport() throws IOException, InterruptedException, JAXBException {
-        OutputStream testReportOutputStream = testReportsDir.child("TEST-" + currentTestSuite.getName() + ".xml").write();
+    private void writeTestReport() throws IOException, InterruptedException,
+            JAXBException {
+        OutputStream testReportOutputStream = outputForSuite();
         JAXBContext jaxbContext = JAXBContext.newInstance(TestSuite.class);
         Marshaller marshaller = jaxbContext.createMarshaller();
         marshaller.marshal(currentTestSuite, testReportOutputStream);
+    }
 
+    protected OutputStream outputForSuite() throws IOException,
+            InterruptedException {
+        return new FileOutputStream(new File(testReportsDir, "TEST-" + currentTestSuite.getName() + ".xml"));
     }
 
     protected void handleLine(String line) throws ParseException, IOException, InterruptedException, JAXBException {
@@ -181,7 +154,7 @@ public class XCodeBuildOutputParser {
             currentTestCase.getFailures().add(failure);
             return;
         } 
-        
+
         m = FAILED_TESTCASE.matcher(line);
         if(m.matches()) {
             requireTestSuite();
