@@ -1,0 +1,23 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.zillow.temporary</groupId>
+	<artifactId>distribution</artifactId>
+	<version>0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
+	<parent>
+		<groupId>org.jenkins-ci.plugins</groupId>
+		<artifactId>plugin</artifactId>
+		<version>1.399</version>
+	</parent>
+	<distributionManagement>
+		<repository>
+			<id>libs-releases-local</id>
+			<url>http://repo.zillow.local/content/repositories/libs-releases-local</url>
+		</repository>
+		<snapshotRepository>
+			<id>libs-snapshots-local</id>
+			<url>http://repo.zillow.local/content/repositories/libs-snapshots-local</url>
+		</snapshotRepository>
+	</distributionManagement>
+</project>
