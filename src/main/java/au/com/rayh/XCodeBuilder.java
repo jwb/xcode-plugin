@@ -386,7 +386,7 @@ public class XCodeBuilder extends Builder {
 
         // Build
         StringBuilder xcodeReport = new StringBuilder(Messages.XCodeBuilder_invokeXcodebuild());
-        XCodeBuildOutputParser reportGenerator = new XCodeBuildOutputParser(projectRoot, listener);
+        HudsonXcodeBuildOutputParser reportGenerator = new HudsonXcodeBuildOutputParser(projectRoot, listener);
         List<String> commandLine = Lists.newArrayList(getDescriptor().getXcodebuildPath());
 
         // Prioritizing schema over target setting
