@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -73,6 +74,12 @@ public class XcodeBuildOutputParser {
                     handleLine(buffer.toString());
                     buffer = new StringBuilder();
                 } catch(Exception e) {  // Very fugly
+                    PrintStream errorDest = new PrintStream(this);
+                    try {
+                        e.printStackTrace(errorDest);
+                    } finally {
+                        errorDest.flush();
+                    }
                     throw new IOException(e);
                 }
             } else {
